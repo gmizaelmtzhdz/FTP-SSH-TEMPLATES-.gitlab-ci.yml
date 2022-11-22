@@ -1,0 +1,50 @@
+stages:
+  - build
+  - deploy
+
+image: ubuntu:20.04
+
+build_develop:
+  stage: build
+  before_script:
+    - apt-get update -qy
+    - apt-get install -y lftp
+  script:   
+    - lftp -c "set ftp:ssl-allow no; open $DEVELOP_FTP_SERVER; user $DEVELOP_FTP_USERNAME $DEVELOP_FTP_PASSWORD; mirror --ignore-time --parallel=10 --include ./*** --exclude README.md --exclude .gitlab-ci.yml --exclude .gitignore --exclude index.php --exclude .git/ --exclude system/ --exclude application/config/ --exclude application/vendor/ --reverse --verbose ./ ./; bye"
+  only: 
+    - develop 
+
+
+
+
+deploy_pre_release:
+    stage: deploy
+    before_script:
+      - apt-get update -qy
+      - apt-get install -y lftp
+    script:   
+      - lftp -c "set ftp:ssl-allow no; open $PRE_RELEASE_FTP_SERVER; user $PRE_RELEASE_FTP_USERNAME $PRE_RELEASE_FTP_PASSWORD; mirror --ignore-time --parallel=10 --include ./*** --exclude README.md --exclude .gitlab-ci.yml --exclude .gitignore --exclude index.php --exclude .git/ --exclude system/ --exclude application/config/ --exclude application/vendor/ --reverse --verbose ./ ./; bye"
+    only: 
+      - pre_release 
+
+
+
+
+deploy_release:
+    stage: deploy
+    before_script:
+      - apt-get update -qy
+      - apt-get install openssh-client -qy
+      - apt-get install git -qy
+    script:  
+      - eval $(ssh-agent -s)
+      - bash -c 'ssh-add <(echo "$PRODUCTION_SSH_PRIVATE_KEY")'
+      - mkdir ~/.ssh
+      - ssh-keyscan -t rsa $PRODUCTION_EC2_IPADDRESS >> ~/.ssh/known_hosts
+      - git diff --name-only HEAD^1
+      - files=`git diff --name-only HEAD^1`
+      - for file in $files; do
+        test -f $file && scp -r $file $PRODUCTION_SSH_USER@$PRODUCTION_EC2_IPADDRESS:/var/www/html/$file
+      - done
+    only: 
+      - main 
