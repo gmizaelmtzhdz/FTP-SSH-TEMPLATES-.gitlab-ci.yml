@@ -1,0 +1,22 @@
+stages:
+  - deploy
+
+image: ubuntu:20.04
+deploy_release:
+    stage: deploy
+    before_script:
+      - apt-get update -qy
+      - apt-get install openssh-client -qy
+      - apt-get install git -qy
+    script:  
+      - eval $(ssh-agent -s)
+      - bash -c 'ssh-add <(echo "$PRODUCTION_SSH_PRIVATE_KEY")'
+      - mkdir ~/.ssh
+      - ssh-keyscan -t rsa $PRODUCTION_EC2_IPADDRESS >> ~/.ssh/known_hosts
+      - git diff --name-only HEAD^1
+      - files=`git diff --name-only HEAD^1`
+      - for file in $files; do
+        test -f $file && scp -r $file $PRODUCTION_SSH_USER@$PRODUCTION_EC2_IPADDRESS:/var/www/html/$file
+      - done
+    only: 
+      - main 
