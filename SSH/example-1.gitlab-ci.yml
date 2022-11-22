@@ -1,0 +1,21 @@
+#Example #1 - Deploy Gitlab vía SSH
+image: ubuntu
+deploy-job:
+  stage: deploy
+  before_script:
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client git -y )'
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - ssh-keyscan $VM_IPADDRESS >> ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+  script:
+  - apt-get update -qy
+  - apt-get install -y lftp
+  #TRANSFERENCIA DE ARCHIVOS
+  - lftp -c "set ftp:ssl-allow no; open $VM_IPADDRESS; user $SSH_USER $SSH_PASSWORD; mirror --ignore-time --parallel=10 --include ./*** --exclude README.md --exclude .gitlab-ci.yml --exclude package-lock.json  --exclude composer.lock --exclude docker-compose.yml --exclude package.json --exclude .git/ --exclude docker/ --reverse --verbose ./ ./web/mydomain.com/public_html; bye"
+  #CONEXIÓN POR SSH PARA INSTALAR DEPENDENCIAS (COMPOSER) Y EJECUTAR LA MIGRACIÓN 
+  - ssh $SSH_USER@$VM_IPADDRESS "hostname && cd /home/user/web/mydomain.com/public_html && composer install && php artisan migrate" 
+  only:
+  - main
