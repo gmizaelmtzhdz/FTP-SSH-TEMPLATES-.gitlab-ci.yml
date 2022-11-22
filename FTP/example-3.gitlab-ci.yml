@@ -1,0 +1,10 @@
+#Example #3 - Deploy Gitlab vía FTP
+image: ubuntu:18.04
+before_script:
+- apt-get update -qy
+- apt-get install -y lftp
+build:
+script:
+  - lftp -c "set ftp:ssl-allow no; open $FTP_SERVER; user $FTP_USERNAME $FTP_PASSWORD; mirror --ignore-time --parallel=10 --include ./*** --exclude README.md --exclude .gitlab-ci.yml --exclude .gitignore --exclude database.sql --exclude package-lock.json --exclude composer.json --exclude composer.lock --exclude db.Dockerfile --exclude db_admin.Dockerfile --exclude development.env --exclude docker-compose.yml --exclude formato_correo1.html --exclude package.json --exclude web.Dockerfile --exclude .git/ --exclude contratos/ --exclude vendor/ --exclude system/ --exclude application/config/ --exclude application/vendor/ --reverse --verbose ./ ./Administracion/; bye"
+only:
+  - main
