@@ -1,0 +1,26 @@
+#Example #4 - Deploy Gitlab vía FTP
+image: ubuntu:20.04
+
+build-job:
+  stage: build
+  script:
+    - echo "Hola, $GITLAB_USER_LOGIN!"
+  only:
+    - master
+
+test-job:
+  stage: test
+  script:
+    - echo "Servidor, $FTP_SERVER"
+  only: 
+    - master
+
+
+deploy-job:
+ stage: deploy
+ script:
+   - apt-get update -qy
+   - apt-get install -y lftp
+   - lftp -c "set ftp:ssl-allow no; open $FTP_SERVER; user $FTP_USERNAME $FTP_PASSWORD; mirror --ignore-time --parallel=10 --exclude README.md --exclude .git/ --exclude .gitignore --exclude .gitlab-ci.yml --reverse --verbose ./ ./; bye"
+ only:
+   - main
